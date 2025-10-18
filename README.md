@@ -26,6 +26,10 @@ example:
 
 - Minor UI updates
 
+### v2.2.0
+
+- Added reCAPTCHA for better security and human verification.
+
 ## Selfhost
 ⚠️ UNDER CONSTRUCTION ⚠️
 
