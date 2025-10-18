@@ -26,7 +26,7 @@ example:
 
 - Minor UI updates
 
-### v2.2.0
+### v2.2.0 (October 18 2025
 
 - Added reCAPTCHA for better security and human verification.
 
