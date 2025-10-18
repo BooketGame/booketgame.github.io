@@ -33,7 +33,7 @@ example:
 ## Selfhost
 ⚠️ UNDER CONSTRUCTION ⚠️
 
-Selfhosting instructions will be available once DSD256 V3 is in a release ready state. Feel free to try setting it up yourself in the meantime but we provide no support or help with this.
+Selfhosting instructions will be available once DSD256 V3 is in a release ready state. At this time, it is unable to set up free hosting for this to your site because we don't have a API site or documentation.
 
 ## Credits
 These amazing people have contributed greatly to DSD256 over it's development:
@@ -41,6 +41,6 @@ These amazing people have contributed greatly to DSD256 over it's development:
 [BooketGame](https://GitHub.com/booketgame) - Lead Developer and founder of DSD256
 
 ## License
-Distributed under the AGPL-3.0 License. See LICENSE for more information.
+Distributed under the AGPL-3.0 License. See [LICENCE](https://github.com/BooketGame/booketgame.github.io/blob/main/LICENSE) for more information.
 
 This project is open source © Music Player DSD256 2025 All Rights Reserved
