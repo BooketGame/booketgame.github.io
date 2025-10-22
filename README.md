@@ -2,7 +2,7 @@
 
 This is a sleek online music search and player powered by the YouTube API. Search for any song, stream audio directly, and control playback with a smooth, modern interface. Simple, fast, and stylish — music without the noise. 
 
-DM @bigwhitething101 on discord. DMs are open, Im pretty sure I removed all ads for this. 
+DM @bigwhitething101 on discord. DMs are open, I'm pretty sure I removed all ads for this. 
 
 ## UPDATE LOG
 
@@ -38,9 +38,9 @@ example:
 - ReCaptcha security update. 
 
 ## Selfhost
-⚠️ UNDER CONSTRUCTION ⚠️
+⚠️ IMPORTANT ⚠️
 
-Selfhosting instructions will be available once DSD256 V3 is in a release ready state.
+It is imposible.
 
 ## Credits
 These amazing people have contributed greatly to DSD256 over it's development:
