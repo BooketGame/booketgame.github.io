@@ -2,7 +2,7 @@
 
 This is a sleek online music search and player powered by the YouTube API. Search for any song, stream audio directly, and control playback with a smooth, modern interface. Simple, fast, and stylish — music without the noise. 
 
-DM @bigwhitething101 on discord. DMs are open.
+DM @bigwhitething101 on discord. DMs are open, Im pretty sure I removed all ads for this. 
 
 ## UPDATE LOG
 
