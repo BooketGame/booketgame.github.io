@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Clever | Portal</title>
+  <title>DSD256 Music Player — Music Search</title>
 
   <!-- Google reCAPTCHA (real) -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
@@ -28,18 +28,26 @@
     }
 
     /* header / title */
-    h1 {
+    #titleWrapper {
+      text-align:center;
+      cursor:pointer;
+      user-select:none;
+      margin-bottom:18px;
+    }
+    #mainTitle {
       font-size:2.2rem;
       letter-spacing:1px;
-      margin: 0 0 18px 0;
-      text-align:center;
-      max-width: 1000px;
-      padding: 0 16px;
-      cursor: pointer;
-      user-select: none;
+      margin:0;
+      max-width:1000px;
+      padding:0 16px;
       transition: color .18s ease, transform .18s ease;
     }
-    h1:hover { color: #bfaaff; transform: scale(1.01); }
+    #mainTitle:hover { color: #bfaaff; transform: scale(1.01); }
+    #titleQuote {
+      font-size:0.85rem;
+      color:#aaa;
+      margin-top:4px;
+    }
 
     /* search box */
     .search-box {
@@ -148,7 +156,7 @@
 
     /* responsive */
     @media (max-width:520px) {
-      h1 { font-size:1.4rem; padding:0 12px; }
+      #mainTitle { font-size:1.4rem; padding:0 12px; }
       .search-box input { padding:12px; }
       .lock-box { width:92%; padding:16px; }
     }
@@ -160,17 +168,19 @@
     <div class="lock-box" role="dialog" aria-modal="true" aria-label="Verification required">
       <h2>Verify you're human to continue 🎧</h2>
       <div class="grecaptcha-wrap">
-        <!-- REAL site key you provided -->
         <div class="g-recaptcha" data-sitekey="6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ" data-callback="unlockSite"></div>
       </div>
     </div>
   </div>
 
   <!-- MAIN UI -->
-  <h1 id="mainTitle">DSD256 Music Player — Music Search</h1>
+  <div id="titleWrapper">
+    <h1 id="mainTitle">DSD256 Music Player — Music Search</h1>
+    <div id="titleQuote"></div>
+  </div>
 
   <div class="search-box" role="search" aria-label="Search for music">
-    <input id="query" type="text" placeholder="type it in already..." aria-label="Search input" />
+    <input id="query" type="text" placeholder="Search for a song..." aria-label="Search input" />
     <button id="search">Search</button>
   </div>
 
@@ -189,23 +199,23 @@
 
   <script>
     /* ============== Settings ============== */
-    const YT_API_KEY = "AIzaSyDkXj66lPy0lC7sRrGfXzFk7dww0c_jkg0"; // your YouTube API key (as requested)
-    const SITEKEY_RECAPTCHA = "6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ"; // already used in DOM
+    const YT_API_KEY = "AIzaSyDkXj66lPy0lC7sRrGfXzFk7dww0c_jkg0";
 
-    /* ============== Title random quotes ============== */
     const TITLE_QUOTES = [
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
-      "DSD256 Music Player - Music Search",
+      "click me!",
+      "Jerry L is W 🔥",
+      "Music cures everything 🎧",
+      "You found the secret title 👀",
+      "DSD256 for life 💿",
+      "vibe check ✅",
+      "turn it up 🔊",
+      "ok but like… who asked? 😭",
+      "this site kinda goes hard ngl 💀",
+      "you clicked it again?? bro chill 😭"
     ];
-    const titleEl = document.getElementById("mainTitle");
+
+    const titleQuoteEl = document.getElementById("titleQuote");
+    const titleWrapper = document.getElementById("titleWrapper");
 
     function pickRandom(arr, avoid) {
       if (!arr.length) return "";
@@ -215,26 +225,30 @@
       return arr[idx];
     }
 
-    // set initial random title on load
-    (function initTitle() {
+    // set initial random quote
+    (function initQuote() {
       const first = pickRandom(TITLE_QUOTES, null);
-      titleEl.textContent = first;
+      titleQuoteEl.textContent = first;
     })();
 
-    // change title on click (no repeats back-to-back)
-    titleEl.addEventListener("click", () => {
-      const next = pickRandom(TITLE_QUOTES, titleEl.textContent);
-      titleEl.textContent = next;
-      // small visual feedback
-      titleEl.style.transform = "scale(1.02)";
-      setTimeout(() => titleEl.style.transform = "", 140);
+    // change quote on click
+    titleWrapper.addEventListener("click", () => {
+      const next = pickRandom(TITLE_QUOTES, titleQuoteEl.textContent);
+      titleQuoteEl.textContent = next;
+      titleWrapper.style.transform = "scale(1.02)";
+      setTimeout(() => titleWrapper.style.transform = "", 140);
     });
 
-    /* ============== reCAPTCHA unlock callback ============== */
+    // keyboard accessibility
+    titleWrapper.tabIndex = 0;
+    titleWrapper.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleWrapper.click(); }
+    });
+
+    /* ============== reCAPTCHA unlock ============== */
     function unlockSite() {
       const lock = document.getElementById("locked");
       lock.classList.add("fade-out");
-      // keep small delay to allow fade
       setTimeout(() => {
         lock.style.display = "none";
         document.body.style.overflow = "auto";
@@ -297,7 +311,6 @@
     }
 
     function playAudio(videoId, title, channel) {
-      // show UI
       nowPlaying.style.display = "block";
       pauseBtn.style.display = "inline-block";
       seekBar.style.display = "block";
@@ -377,11 +390,9 @@
       return `${m}:${s}`;
     }
 
-    // search interactions
     searchBtn.addEventListener("click", () => {
       const q = queryInput.value.trim();
       if (!q) return;
-      // ensure captcha done (overlay gone)
       const locked = document.getElementById("locked");
       if (locked && locked.style.display !== "none") {
         alert("Please verify with reCAPTCHA first.");
@@ -394,7 +405,6 @@
       if (e.key === "Enter") searchBtn.click();
     });
 
-    // helper: escape HTML for safety in result text
     function escapeHtml(unsafe) {
       return unsafe.replace(/[&<"'>]/g, function(m) {
         return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
@@ -407,13 +417,6 @@
       s.src = "https://www.youtube.com/iframe_api";
       document.body.appendChild(s);
     })();
-
-    // accessibility: allow title to be focusable/keyboard-activated
-    titleEl.tabIndex = 0;
-    titleEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleEl.click(); }
-    });
-
   </script>
 </body>
 </html>
