@@ -229,6 +229,37 @@
 
   </style>
 </head>
+<script>
+  const titleEl = document.getElementById("mainTitle");
+
+  // list of random messages/quotes
+  const quotes = [
+    "click me!",
+    "Jerry L is W 🔥",
+    "Music cures everything 🎧",
+    "You found the secret title 👀",
+    "DSD256 for life 💿",
+    "vibe check ✅",
+    "turn it up 🔊",
+    "ok but like… who asked? 😭",
+    "this site kinda goes hard ngl 💀",
+    "you clicked it again?? bro chill 😭"
+  ];
+
+  // pick random quote
+  function randomQuote() {
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  }
+
+  // set a random quote on page load
+  titleEl.textContent = randomQuote();
+
+  // change when clicked
+  titleEl.addEventListener("click", () => {
+    titleEl.textContent = randomQuote();
+  });
+</script>
+
 <body>
   <!-- CAPTCHA Lock Screen -->
   <div id="locked">
