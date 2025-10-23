@@ -2,7 +2,7 @@
 
 This is a sleek online music search and player powered by the YouTube API. Search for any song, stream audio directly, and control playback with a smooth, modern interface. Simple, fast, and stylish — music without the noise. 
 
-DM @bigwhitething101 on discord. DMs are open, I'm pretty sure I removed all ads for this. 
+DM @bigwhitething101 on discord. DMs are open, I'm pretty sure I removed all ads for this. I will also update frequently because I have a lot of time and want yall to have the best experence yall can possibly get. 
 
 ## UPDATE LOG
 
@@ -32,10 +32,15 @@ example:
 
 - Added reCAPTCHA for better security and human verification.
 
-### v3.0.0
+### v2.2.1
 
 - Major UI update and the header changes too.
-- ReCaptcha security update. 
+- ReCaptcha security update.
+
+### v3.0.0
+
+- Another Major UI update.
+- Admin panel for me to control almost everthing on the site. 
 
 ## Selfhost
 ⚠️ IMPORTANT ⚠️
