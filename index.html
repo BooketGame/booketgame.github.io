@@ -172,6 +172,7 @@
       border-radius:10px;
       cursor:pointer;
       font-weight:600;
+      backdrop-filter: blur(4px);
     }
     #adminPanel {
       position:fixed;
@@ -313,7 +314,7 @@
       </div>
     </div>
 
-    <!-- Activity Log -->
+    <!-- Activity Log (Option C: floating/persistent) -->
     <div id="activityLog" aria-live="polite" role="status">
       <div id="activityLogHeader">
         <strong style="color:#fff;font-size:.95rem;">Activity Log</strong>
@@ -351,29 +352,250 @@
 
   <div id="results" class="results" aria-label="Search results"></div>
 
-  <div class="disclaimer">© 2025 DSD Portal</div>
+  <div id="player"></div> <!-- invisible YouTube iframe inserted by API -->
+
+  <div class="disclaimer">© 2025 DSD256 — Music Search — audio streamed via YouTube API. We are not affiliated with Spotify or YouTube.</div>
 
   <script>
-    // === reCAPTCHA unlock callback ===
-    function unlockSite() {
-      document.getElementById('locked').classList.add('hidden');
-    }
-
-    // === Admin functionality ===
+    /* ============== Settings & constants ============== */
+    const STORAGE_KEYS = {
+      RECAP: 'dsd_recap_enabled',
+      QUOTES: 'dsd_quotes_enabled',
+      PRESET: 'dsd_bg_preset',
+      LOG: 'dsd_activity_log'
+    };
     const ADMIN_PW = "DSD2562025";
+
+    const YT_API_KEY = "AIzaSyDkXj66lPy0lC7sRrGfXzFk7dww0c_jkg0";
+
+    const TITLE_QUOTES = [
+      "click me!",
+      "Jerry L is W",
+      "don't fail your classes",
+      "pin oak pmo",
+      "spotify so bunz",
+      "please don't block this site",
+      "hello",
+      "not my prob if you get caught",
+      "this site kinda goes hard ngl",
+      "press ctrl+shift+qq"
+    ];
+
+    const PRESETS = {
+      purpleNight: "linear-gradient(135deg,#0f0b20,#2e0f5a)",
+      blueFade:     "linear-gradient(135deg,#071232,#123a6b)",
+      sunset:       "linear-gradient(135deg,#ff6a88,#ff9a58)",
+      matrix:       "linear-gradient(135deg,#021104,#0b7a3a)",
+      galaxy:       "linear-gradient(135deg,#1b0036,#06113a)"
+    };
+
+    // DOM refs
+    const titleQuoteEl = document.getElementById("titleQuote");
+    const titleWrapper = document.getElementById("titleWrapper");
     const adminBtn = document.getElementById("adminBtn");
     const adminPanel = document.getElementById("adminPanel");
     const adminLogout = document.getElementById("adminLogout");
+    const recapToggle = document.getElementById("recapToggle");
+    const quotesToggle = document.getElementById("quotesToggle");
+    const presetButtons = document.querySelectorAll(".preset");
+    const lockedOverlay = document.getElementById("locked");
+    const activityListEl = document.getElementById("activityList");
+    const clearLogBtn = document.getElementById("clearLogBtn");
+    const exportLogBtn = document.getElementById("exportLogBtn");
 
-    const activityList = document.getElementById("activityList");
+    // player refs
+    const searchBtn = document.getElementById("search");
+    const queryInput = document.getElementById("query");
+    const resultsDiv = document.getElementById("results");
+    const nowPlaying = document.getElementById("nowPlaying");
+    const pauseBtn = document.getElementById("pauseBtn");
+    const seekBar = document.getElementById("seekBar");
+    const currentTimeEl = document.getElementById("currentTime");
+    const totalTimeEl = document.getElementById("totalTime");
+    const timeDisplay = document.getElementById("timeDisplay");
+
+    // runtime state
+    let recaptchaEnabled = true;
+    let recaptchaVerified = false; // only true after unlockSite called (token-based in real world)
+    let quotesEnabled = true;
+    let currentPreset = 'purpleNight';
+
+    // youtube player state
+    let ytPlayer = null;
+    let isPaused = false;
+    let updateInterval = null;
+
+    /* ============== Activity Log helpers ============== */
+    const MAX_LOG = 50;
+
+    function loadLog() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.LOG);
+        if (!raw) return [];
+        return JSON.parse(raw);
+      } catch (e) {
+        return [];
+      }
+    }
+    function saveLog(arr) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.LOG, JSON.stringify(arr.slice(0, MAX_LOG)));
+      } catch (e) {
+        console.error("Failed to save log", e);
+      }
+    }
     function addLog(text) {
-      const ts = new Date().toLocaleTimeString();
-      const li = document.createElement("li");
-      li.className = "log-item";
-      li.innerHTML = `<span>${text}</span><span class="log-ts">${ts}</span>`;
-      activityList.prepend(li);
+      const ts = new Date().toISOString();
+      const list = loadLog();
+      list.unshift({ ts, text }); // newest first
+      if (list.length > MAX_LOG) list.length = MAX_LOG;
+      saveLog(list);
+      renderLog();
+    }
+    function clearLogKeepNote() {
+      // push an entry about clearing, then remove older entries but keep the clear action so admin sees it
+      const list = loadLog();
+      const ts = new Date().toISOString();
+      list.unshift({ ts, text: "🗑️ Admin cleared activity log" });
+      // keep only this clearing entry
+      saveLog([ { ts, text: "🗑️ Admin cleared activity log" } ]);
+      renderLog();
+    }
+    function exportLog() {
+      const list = loadLog();
+      const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dsd256-activity-log-${new Date().toISOString()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+    function renderLog() {
+      const list = loadLog();
+      activityListEl.innerHTML = "";
+      if (!list.length) {
+        const li = document.createElement('li');
+        li.className = 'log-item';
+        li.innerHTML = `<div style="opacity:.9">No activity yet.</div>`;
+        activityListEl.appendChild(li);
+        return;
+      }
+      list.forEach(entry => {
+        const li = document.createElement('li');
+        li.className = 'log-item';
+        const ts = new Date(entry.ts);
+        const tsStr = ts.toLocaleString();
+        const left = document.createElement('div');
+        left.style.flex = '1';
+        left.textContent = entry.text || '';
+        const right = document.createElement('div');
+        right.className = 'log-ts';
+        right.textContent = tsStr;
+        li.appendChild(left);
+        li.appendChild(right);
+        activityListEl.appendChild(li);
+      });
     }
 
+    clearLogBtn.addEventListener('click', () => {
+      if (!confirm("Clear activity log? This will keep a single 'cleared' entry.")) return;
+      clearLogKeepNote();
+    });
+    exportLogBtn.addEventListener('click', () => exportLog());
+
+    /* ============== UTIL helpers ============== */
+    function storageGetBool(key, defaultVal) {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return defaultVal;
+      return raw === 'true';
+    }
+    function storageSetBool(key, val) {
+      localStorage.setItem(key, val ? 'true' : 'false');
+    }
+    function storageGetString(key, defaultVal) {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return defaultVal;
+      return raw;
+    }
+    function storageSetString(key, val) {
+      localStorage.setItem(key, String(val));
+    }
+
+    function pickRandom(arr, avoid) {
+      if (!arr.length) return "";
+      if (arr.length === 1) return arr[0];
+      let idx;
+      do { idx = Math.floor(Math.random() * arr.length); } while (arr[idx] === avoid);
+      return arr[idx];
+    }
+
+    /* ============== Initialization: load saved settings or defaults ============== */
+    (function loadSettings() {
+      // read saved or fallback defaults
+      recaptchaEnabled = storageGetBool(STORAGE_KEYS.RECAP, true); // default: true
+      quotesEnabled = storageGetBool(STORAGE_KEYS.QUOTES, true);   // default: true
+      currentPreset = storageGetString(STORAGE_KEYS.PRESET, 'purpleNight'); // default first-time Purple Night
+
+      // apply preset
+      applyPreset(currentPreset);
+
+      // if recaptcha disabled, mark verified so searches work
+      if (!recaptchaEnabled) {
+        recaptchaVerified = true;
+        if (lockedOverlay) lockedOverlay.classList.add('hidden');
+      } else {
+        // if enabled, show overlay until user verifies (unlockSite will set verified)
+        recaptchaVerified = false;
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+      }
+
+      // initialize title quote text or hide if disabled
+      if (!quotesEnabled) {
+        titleQuoteEl.style.opacity = 0;
+      } else {
+        const first = pickRandom(TITLE_QUOTES, null);
+        titleQuoteEl.textContent = first;
+      }
+
+      // update admin UI text/states
+      initAdminUI();
+      highlightActivePreset();
+      renderLog();
+    })();
+
+    /* ============== Title / Quotes handling ============== */
+    function changeQuote() {
+      if (!quotesEnabled) return;
+      titleQuoteEl.style.opacity = 0;
+      setTimeout(() => {
+        const next = pickRandom(TITLE_QUOTES, titleQuoteEl.textContent);
+        titleQuoteEl.textContent = next;
+        titleQuoteEl.style.opacity = 1;
+      }, 180);
+    }
+
+    titleWrapper.addEventListener("click", () => {
+      changeQuote();
+      titleWrapper.style.transform = "scale(1.02)";
+      setTimeout(() => titleWrapper.style.transform = "", 140);
+    });
+    titleWrapper.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleWrapper.click(); }
+    });
+
+    /* ============== reCAPTCHA (v2) callback ============== */
+    function unlockSite(token) {
+      // token is not validated here (client-only). In real production, validate server-side.
+      recaptchaVerified = true;
+      if (lockedOverlay) lockedOverlay.classList.add('hidden');
+      addLog('✅ reCAPTCHA verified');
+    }
+    window.unlockSite = unlockSite; // reCAPTCHA calls this global
+
+    /* ============== Admin login & panel flow ============== */
     function openAdminPanel() {
       adminPanel.classList.add("open");
       adminBtn.style.opacity = "0.6";
@@ -385,11 +607,8 @@
       addLog('✖️ Admin logged out');
     }
 
-    function toggleAdminPanel() {
-      if (adminPanel.classList.contains("open")) {
-        closeAdminPanel();
-        return;
-      }
+    adminBtn.addEventListener("click", () => {
+      if (adminPanel.classList.contains("open")) { closeAdminPanel(); return; }
       const pw = prompt("Admin Password:");
       if (pw === null) return;
       if (pw === ADMIN_PW) {
@@ -398,71 +617,297 @@
         alert("Access Denied");
         addLog('🔒 Failed admin login attempt');
       }
+    });
+    adminLogout.addEventListener("click", () => closeAdminPanel());
+
+    // close admin when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!adminPanel.classList.contains("open")) return;
+      const inside = adminPanel.contains(e.target) || adminBtn.contains(e.target);
+      if (!inside) closeAdminPanel();
+    });
+
+    /* ============== Admin controls (persist to localStorage) ============== */
+    function refreshRecaptchaUI() {
+      // toggle button text/styling
+      if (recaptchaEnabled) {
+        recapToggle.textContent = "Disable";
+        recapToggle.classList.remove("ghost");
+        recapToggle.classList.add("btn");
+        // if not verified, show overlay
+        if (!recaptchaVerified) {
+          if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+        } else {
+          if (lockedOverlay) lockedOverlay.classList.add('hidden');
+        }
+      } else {
+        recapToggle.textContent = "Enable";
+        recapToggle.classList.remove("btn");
+        recapToggle.classList.add("btn", "ghost");
+        // hide overlay and treat as verified
+        if (lockedOverlay) lockedOverlay.classList.add('hidden');
+        recaptchaVerified = true;
+      }
     }
 
-    adminBtn.addEventListener("click", toggleAdminPanel);
-    adminBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleAdminPanel();
+    recapToggle.addEventListener("click", () => {
+      recaptchaEnabled = !recaptchaEnabled;
+      storageSetBool(STORAGE_KEYS.RECAP, recaptchaEnabled);
+      if (recaptchaEnabled) {
+        // enabling captcha: require new verification
+        recaptchaVerified = false;
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+        addLog('🔧 reCAPTCHA enabled');
+      } else {
+        recaptchaVerified = true;
+        addLog('🔧 reCAPTCHA disabled');
       }
+      refreshRecaptchaUI();
     });
 
-    document.addEventListener("mousedown", (e) => {
-      if (!adminPanel.classList.contains("open")) return;
-      if (!adminPanel.contains(e.target) && !adminBtn.contains(e.target)) closeAdminPanel();
+    function refreshQuotesUI() {
+      if (quotesEnabled) {
+        quotesToggle.textContent = "Disable";
+        quotesToggle.classList.remove("ghost");
+        quotesToggle.classList.add("btn");
+        titleQuoteEl.style.opacity = 1;
+      } else {
+        quotesToggle.textContent = "Enable";
+        quotesToggle.classList.remove("btn");
+        quotesToggle.classList.add("btn", "ghost");
+        titleQuoteEl.style.opacity = 0;
+      }
+    }
+
+    quotesToggle.addEventListener("click", () => {
+      quotesEnabled = !quotesEnabled;
+      storageSetBool(STORAGE_KEYS.QUOTES, quotesEnabled);
+      addLog(quotesEnabled ? '🔧 Quotes enabled' : '🔧 Quotes disabled');
+      refreshQuotesUI();
     });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && adminPanel.classList.contains("open")) closeAdminPanel();
-    });
+    // apply and save preset
+    function applyPreset(name) {
+      const css = PRESETS[name] || PRESETS.purpleNight;
+      document.body.style.background = css;
+      currentPreset = name;
+      storageSetString(STORAGE_KEYS.PRESET, name);
+      highlightActivePreset();
+      addLog(`🎨 Background set to ${presetPrettyName(name)}`);
+    }
 
-    adminLogout.addEventListener("click", closeAdminPanel);
+    function presetPrettyName(id) {
+      switch (id) {
+        case 'purpleNight': return 'Purple Night';
+        case 'blueFade': return 'Ocean Blue';
+        case 'sunset': return 'Sunset Vibes';
+        case 'matrix': return 'Neon Matrix';
+        case 'galaxy': return 'Galaxy';
+        default: return id;
+      }
+    }
 
-    // Preset buttons
-    const presets = {
-      purpleNight: "linear-gradient(135deg,#0f0b20,#2e0f5a)",
-      blueFade: "linear-gradient(135deg,#0f4c81,#00c6ff)",
-      sunset: "linear-gradient(135deg,#ff4b1f,#ff9068)",
-      matrix: "linear-gradient(135deg,#0f0,#020)",
-      galaxy: "linear-gradient(135deg,#1a2a6c,#b21f1f,#fdbb2d)"
-    };
-    document.querySelectorAll('.preset').forEach(btn => {
+    function highlightActivePreset() {
+      presetButtons.forEach(btn => {
+        if (btn.dataset.preset === currentPreset) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
+
+    presetButtons.forEach(btn => {
       btn.addEventListener('click', () => {
-        document.body.style.background = presets[btn.dataset.preset];
-        addLog(`🎨 Background set to ${btn.dataset.preset}`);
-        document.querySelectorAll('.preset').forEach(b=>b.classList.remove('active'));
-        btn.classList.add('active');
+        const p = btn.dataset.preset;
+        applyPreset(p);
       });
     });
 
-    // Activity log buttons
-    document.getElementById("clearLogBtn").addEventListener("click", () => {
-      activityList.innerHTML = '';
-      addLog('🧹 Activity log cleared');
-    });
-    document.getElementById("exportLogBtn").addEventListener("click", () => {
-      let text = Array.from(activityList.children).map(li=>li.textContent).join("\n");
-      const blob = new Blob([text], {type:'text/plain'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'activity-log.txt';
-      a.click();
-      addLog('📤 Activity log exported');
+    function initAdminUI() {
+      // recap toggle label
+      recapToggle.textContent = recaptchaEnabled ? "Disable" : "Enable";
+      if (!recaptchaEnabled) recapToggle.classList.add("ghost");
+
+      // quotes toggle label
+      quotesToggle.textContent = quotesEnabled ? "Disable" : "Enable";
+      if (!quotesEnabled) {
+        quotesToggle.classList.add("ghost");
+        titleQuoteEl.style.opacity = 0;
+      } else {
+        titleQuoteEl.style.opacity = 1;
+      }
+
+      highlightActivePreset();
+    }
+
+    /* ============== YouTube search & player ============== */
+    async function searchYouTube(query) {
+      resultsDiv.innerHTML = `<div style="color:#aaa;padding:12px">Searching for "${query}"…</div>`;
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`;
+      try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Network response not ok");
+        const data = await res.json();
+        if (!data.items || data.items.length === 0) {
+          resultsDiv.innerHTML = `<div style="color:#ccc;padding:12px">No results found.</div>`;
+          return;
+        }
+        showResults(data.items);
+      } catch (err) {
+        console.error(err);
+        resultsDiv.innerHTML = `<div style="color:#f88;padding:12px">Search failed. Check console.</div>`;
+      }
+    }
+
+    function showResults(items) {
+      resultsDiv.innerHTML = "";
+      items.forEach(item => {
+        const vid = item.id.videoId;
+        const title = item.snippet.title;
+        const channel = item.snippet.channelTitle;
+        const thumb = (item.snippet.thumbnails && item.snippet.thumbnails.medium) ? item.snippet.thumbnails.medium.url : "";
+
+        const div = document.createElement("div");
+        div.className = "result-item";
+        div.innerHTML = `
+          <img src="${thumb}" alt="thumb">
+          <div class="info">
+            <strong>${escapeHtml(title)}</strong>
+            <span>${escapeHtml(channel)}</span>
+          </div>
+        `;
+        div.addEventListener("click", () => playAudio(vid, title, channel));
+        resultsDiv.appendChild(div);
+      });
+    }
+
+    function playAudio(videoId, title, channel) {
+      // if recaptcha enabled and not verified, block
+      if (recaptchaEnabled && !recaptchaVerified) {
+        alert("Please complete the reCAPTCHA verification first.");
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+        return;
+      }
+
+      nowPlaying.style.display = "block";
+      pauseBtn.style.display = "inline-block";
+      seekBar.style.display = "block";
+      timeDisplay.style.display = "flex";
+      nowPlaying.textContent = `🎧 Now Playing: ${title} — ${channel}`;
+
+      if (ytPlayer) {
+        ytPlayer.loadVideoById(videoId);
+      } else {
+        ytPlayer = new YT.Player("player", {
+          height: "0", width: "0",
+          videoId: videoId,
+          playerVars: { autoplay: 1, controls: 0, disablekb: 1 },
+          events: {
+            onReady: (e) => { e.target.playVideo(); startUpdatingSeekBar(); },
+            onStateChange: handleStateChange
+          }
+        });
+      }
+      startUpdatingSeekBar();
+    }
+
+    function handleStateChange(event) {
+      if (event.data === YT.PlayerState.PLAYING) {
+        startUpdatingSeekBar();
+        isPaused = false;
+        pauseBtn.textContent = "⏸ Pause";
+      } else if (event.data === YT.PlayerState.PAUSED) {
+        clearInterval(updateInterval);
+        isPaused = true;
+        pauseBtn.textContent = "▶️ Resume";
+      } else if (event.data === YT.PlayerState.ENDED) {
+        clearInterval(updateInterval);
+      }
+    }
+
+    function startUpdatingSeekBar() {
+      clearInterval(updateInterval);
+      updateInterval = setInterval(() => {
+        if (ytPlayer && typeof ytPlayer.getDuration === "function") {
+          const cur = ytPlayer.getCurrentTime();
+          const dur = ytPlayer.getDuration();
+          if (dur && !isNaN(dur) && dur > 0) {
+            seekBar.value = (cur / dur) * 100;
+            currentTimeEl.textContent = formatTime(cur);
+            totalTimeEl.textContent = formatTime(dur);
+          }
+        }
+      }, 400);
+    }
+
+    seekBar.addEventListener("input", () => {
+      if (ytPlayer && typeof ytPlayer.getDuration === "function") {
+        const dur = ytPlayer.getDuration();
+        const seekTo = (seekBar.value / 100) * dur;
+        ytPlayer.seekTo(seekTo, true);
+      }
     });
 
-    // Quotes randomization
-    const quotes = [
-      "🎵 Music expresses that which cannot be put into words.",
-      "🎶 Where words fail, music speaks.",
-      "🎧 Life is a song, love is the music."
-    ];
-    const titleQuote = document.getElementById("titleQuote");
-    function randomQuote() {
-      titleQuote.textContent = quotes[Math.floor(Math.random()*quotes.length)];
+    pauseBtn.addEventListener("click", () => {
+      if (!ytPlayer) return;
+      if (isPaused) {
+        ytPlayer.playVideo();
+        pauseBtn.textContent = "⏸ Pause";
+        isPaused = false;
+      } else {
+        ytPlayer.pauseVideo();
+        pauseBtn.textContent = "▶️ Resume";
+        isPaused = true;
+      }
+    });
+
+    function formatTime(sec) {
+      if (!sec || isNaN(sec)) return "0:00";
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60).toString().padStart(2, "0");
+      return `${m}:${s}`;
     }
-    setInterval(randomQuote, 8000);
-    randomQuote();
+
+    // search interactions
+    searchBtn.addEventListener("click", () => {
+      const q = queryInput.value.trim();
+      if (!q) return;
+      if (recaptchaEnabled && !recaptchaVerified) {
+        alert("Please verify with reCAPTCHA first.");
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+        return;
+      }
+      searchYouTube(q);
+    });
+
+    queryInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") searchBtn.click();
+    });
+
+    function escapeHtml(unsafe) {
+      return String(unsafe).replace(/[&<"'>]/g, function(m) {
+        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+      });
+    }
+
+    /* ============== Load YouTube iframe API ============== */
+    (function loadYouTubeAPI(){
+      const s = document.createElement("script");
+      s.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(s);
+    })();
+
+    /* ============== Update UI initial states (after DOM ready) ============== */
+    (function finalizeInit() {
+      // ensure UI text matches loaded state
+      refreshRecaptchaUI();
+      refreshQuotesUI();
+      highlightActivePreset();
+      renderLog();
+      // if quotes disabled, keep quote hidden
+      if (!quotesEnabled) titleQuoteEl.style.opacity = 0;
+    })();
+
   </script>
 </body>
 </html>
+
+
