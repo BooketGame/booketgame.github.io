@@ -1,911 +1,206 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Clever | Portal</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DSD256 Music Player — Music Search</title>
 
-  <!-- Google reCAPTCHA v2 -->
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+<!-- reCAPTCHA v2 -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
-  <link rel="icon" type="image/png" href="logo.png">
-
-  <style>
-    /* === Core layout / theme === */
-    * { box-sizing: border-box; }
-    html,body { height:100%; }
-    body {
-      margin:0;
-      font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: linear-gradient(135deg,#0f0b20,#2e0f5a); /* Purple Night default */
-      color: #fff;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      padding-top:60px;
-      min-height:100vh;
-      overflow:auto;
-      transition: background .35s ease;
-    }
-
-    /* header / title */
-    #titleWrapper {
-      text-align:center;
-      cursor:pointer;
-      user-select:none;
-      margin-bottom:18px;
-      outline: none;
-    }
-    #mainTitle {
-      font-size:2.2rem;
-      letter-spacing:1px;
-      margin:0;
-      max-width:1000px;
-      padding:0 16px;
-      transition: color .18s ease, transform .18s ease;
-    }
-    #mainTitle:hover { color: #bfaaff; transform: scale(1.01); }
-    #titleQuote {
-      font-size:0.85rem;
-      color:#ddd;
-      margin-top:6px;
-      min-height:1.1em;
-      opacity:1;
-      transition: opacity .22s ease, transform .22s ease;
-    }
-
-    /* search box */
-    .search-box {
-      display:flex;
-      align-items:center;
-      background:#222;
-      border-radius:50px;
-      padding:6px 10px;
-      width:90%;
-      max-width:560px;
-      box-shadow: 0 8px 18px rgba(0,0,0,0.45);
-    }
-    .search-box input {
-      flex:1;
-      padding:14px 18px;
-      border:none;
-      outline:none;
-      background:transparent;
-      color:#fff;
-      font-size:1rem;
-      border-radius: 40px;
-    }
-    .search-box button {
-      margin-left:10px;
-      background:#6c63ff;
-      border:none;
-      color:white;
-      padding:10px 18px;
-      border-radius:28px;
-      cursor:pointer;
-      box-shadow: 0 6px 0 rgba(0,0,0,0.35);
-      font-weight:600;
-      transition: background .15s ease, transform .12s ease;
-    }
-    .search-box button:hover { background:#574ede; transform: translateY(-1px); }
-
-    /* player card */
-    #player-section {
-      margin-top:18px;
-      width:90%;
-      max-width:560px;
-      background:#1c1c2a;
-      border-radius:14px;
-      padding:18px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:10px;
-    }
-    #nowPlaying { display:none; color:#ddd; text-align:center; }
-    #pauseBtn { display:none; background:#6c63ff; border:none; color:white; padding:8px 14px; border-radius:20px; cursor:pointer; }
-    #seekBar { display:none; width:100%; height:6px; appearance:none; background:#333; border-radius:8px; outline:none; }
-    #seekBar::-webkit-slider-thumb { appearance:none; width:12px; height:12px; background:#6c63ff; border-radius:50%; }
-
-    #timeDisplay { display:none; width:100%; font-size:.9rem; color:#bbb; justify-content:space-between; }
-
-    /* results */
-    .results {
-      margin-top:28px;
-      display:flex;
-      flex-direction:column;
-      width:90%;
-      max-width:700px;
-      gap:12px;
-    }
-    .result-item {
-      background:#1f1f2f;
-      border-radius:12px;
-      padding:10px;
-      display:flex;
-      gap:12px;
-      align-items:center;
-      cursor:pointer;
-      transition: background .14s ease, transform .12s ease;
-      box-shadow: 0 6px 18px rgba(0,0,0,0.35);
-    }
-    .result-item:hover { background:#2a2a3f; transform: translateY(-2px); }
-    .result-item img { width:56px; height:56px; border-radius:10px; object-fit:cover; }
-    .info { display:flex; flex-direction:column; gap:6px; }
-    .info strong { font-size:1rem; color:#fff; }
-    .info span { color:#aaa; font-size:.9rem; }
-
-    /* disclaimer */
-    .disclaimer { position:fixed; right:16px; bottom:8px; color:#777; font-size:.76rem; text-align:right; }
-
-    /* lock overlay (reCAPTCHA) */
-    #locked {
-      position:fixed; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      background: linear-gradient(180deg, rgba(6,6,8,0.85), rgba(6,6,8,0.9));
-      z-index:9999;
-      transition: opacity 400ms ease, visibility 400ms;
-    }
-    #locked.hidden { opacity:0; pointer-events:none; visibility:hidden; }
-    .lock-box {
-      width:360px;
-      background: linear-gradient(180deg,#111220,#0b0b10);
-      border-radius:14px;
-      padding:22px;
-      text-align:center;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.6);
-    }
-    .lock-box h2 { margin:0 0 12px 0; color:#cfcfe6; font-size:1.1rem; }
-    .grecaptcha-wrap { display:flex; justify-content:center; margin-top:6px; }
-
-    /* Admin button + panel */
-    #adminBtn {
-      position:fixed;
-      top:14px;
-      right:16px;
-      z-index:10001;
-      background:transparent;
-      border:2px solid rgba(255,255,255,0.08);
-      color:#ddd;
-      padding:8px 12px;
-      border-radius:10px;
-      cursor:pointer;
-      font-weight:600;
-      backdrop-filter: blur(4px);
-    }
-    #adminPanel {
-      position:fixed;
-      top:56px;
-      right:16px;
-      width:360px;
-      max-width:92%;
-      background:linear-gradient(180deg, rgba(20,20,28,0.98), rgba(10,10,16,0.98));
-      border-radius:12px;
-      padding:12px;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.6);
-      transform-origin: top right;
-      transform: translateY(-8px) scale(.98);
-      opacity:0;
-      pointer-events:none;
-      transition: opacity .22s ease, transform .22s ease;
-      z-index:10000;
-    }
-    #adminPanel.open { opacity:1; transform: translateY(0) scale(1); pointer-events:auto; }
-
-    .admin-row { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:8px 6px; border-bottom:1px dashed rgba(255,255,255,0.03); }
-    .admin-row label { font-size:0.92rem; color:#ddd; }
-    .admin-actions { padding-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
-    .btn { background:#6c63ff; border:none; color:white; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600; }
-    .btn.ghost { background:transparent; border:1px solid rgba(255,255,255,0.06); color:#ddd; }
-
-    /* preset buttons: white text + subtle glow for readability on gradients */
-    .preset {
-      color: #fff;
-      text-shadow: 0 1px 0 rgba(0,0,0,0.6);
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      padding:6px 8px;
-      border-radius:8px;
-      cursor:pointer;
-      font-size:.9rem;
-      transition: transform .12s ease, background .12s ease;
-    }
-    .preset:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
-    .preset.active { box-shadow: 0 6px 18px rgba(0,0,0,0.45); background: rgba(255,255,255,0.09); }
-
-    /* activity log styles (floating panel inside admin) */
-    #activityLog {
-      margin-top:10px;
-      background: rgba(0,0,0,0.12);
-      border-radius:10px;
-      padding:8px;
-      width:100%;
-      max-height:220px;
-      overflow:auto;
-      border:1px solid rgba(255,255,255,0.04);
-    }
-    #activityLogHeader {
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-      margin-bottom:6px;
-    }
-    #activityList {
-      list-style:none;
-      margin:0;
-      padding:0;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-size:.84rem;
-      color:#e6e6ee;
-    }
-    .log-item {
-      background: rgba(255,255,255,0.02);
-      padding:8px;
-      border-radius:8px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.35);
-      display:flex;
-      justify-content:space-between;
-      gap:8px;
-      align-items:flex-start;
-      word-break:break-word;
-    }
-    .log-ts { color:#bababf; font-size:.75rem; margin-left:8px; white-space:nowrap; }
-
-    .log-controls { display:flex; gap:6px; margin-top:8px; }
-    .small { font-size:0.82rem; color:#bdbbd0; }
-
-    /* responsive */
-    @media (max-width:520px) {
-      #mainTitle { font-size:1.4rem; padding:0 12px; }
-      .search-box input { padding:12px; }
-      .lock-box { width:92%; padding:16px; }
-      #adminPanel { right:8px; left:8px; width:auto; top:64px; }
-      #adminBtn { right:8px; }
-    }
-  </style>
+<style>
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: "Poppins", sans-serif; background:#0f0b20; color:#fff; display:flex; flex-direction:column; align-items:center; padding-top:50px; min-height:100vh; }
+  #titleWrapper { cursor:pointer; text-align:center; margin-bottom:15px; }
+  #mainTitle { font-size:2rem; margin:0; }
+  #titleQuote { font-size:0.85rem; color:#ccc; margin-top:6px; min-height:1em; }
+  .search-box { display:flex; width:90%; max-width:560px; margin-bottom:20px; }
+  .search-box input { flex:1; padding:12px; border-radius:30px; border:none; outline:none; }
+  .search-box button { margin-left:8px; padding:10px 16px; border:none; border-radius:28px; cursor:pointer; background:#6c63ff; color:#fff; }
+  #results { width:90%; max-width:700px; display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+  .result-item { display:flex; gap:10px; align-items:center; background:#1f1f2f; padding:8px; border-radius:10px; cursor:pointer; }
+  .result-item img { width:50px; height:50px; object-fit:cover; border-radius:6px; }
+  .info { display:flex; flex-direction:column; }
+  #player-section { display:flex; flex-direction:column; align-items:center; gap:6px; margin-bottom:20px; }
+  #playlist { width:90%; max-width:500px; background:#222; border-radius:10px; padding:10px; list-style:none; min-height:50px; }
+  #playlist li { display:flex; justify-content:space-between; align-items:center; padding:6px; border-bottom:1px solid #444; }
+  #adminBtn { position:fixed; top:10px; right:10px; padding:6px 10px; border-radius:8px; background:#6c63ff; color:#fff; border:none; cursor:pointer; }
+  #adminPanel { position:fixed; top:50px; right:10px; width:320px; background:#111; border-radius:10px; padding:12px; opacity:0; pointer-events:none; transition:0.2s; }
+  #adminPanel.open { opacity:1; pointer-events:auto; }
+  .btn { background:#6c63ff; color:#fff; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+  .playlist-controls { display:flex; gap:8px; margin-top:6px; }
+  #locked { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.8); z-index:9999; }
+</style>
 </head>
 <body>
-  <!-- LOCK overlay with real reCAPTCHA (v2 checkbox) -->
-  <div id="locked" role="dialog" aria-modal="true">
-    <div class="lock-box" role="document" aria-label="Verification required">
-      <h2>Verify you're human to continue 🎧</h2>
-      <div class="grecaptcha-wrap">
-        <!-- REAL site key provided earlier -->
-        <div id="grecaptcha-root" class="g-recaptcha" data-sitekey="6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ" data-callback="unlockSite"></div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Admin -->
-  <button id="adminBtn" aria-haspopup="true" aria-controls="adminPanel">Admin Login</button>
+<div id="titleWrapper">
+  <h1 id="mainTitle">DSD256 Music Player</h1>
+  <div id="titleQuote"></div>
+</div>
+
+<div class="search-box">
+  <input id="query" type="text" placeholder="Search for a song..." />
+  <button id="search">Search</button>
+</div>
+
+<div id="results"></div>
+
+<div id="player-section">
+  <div id="nowPlaying"></div>
+  <button id="pauseBtn" style="display:none;">⏸ Pause</button>
+  <input type="range" id="seekBar" value="0" min="0" max="100" style="display:none;" />
+  <div id="timeDisplay" style="display:none;"><span id="currentTime">0:00</span>/<span id="totalTime">0:00</span></div>
+</div>
+
+<ul id="playlist"></ul>
+<div class="playlist-controls">
+  <button id="exportPlaylistBtn" class="btn">Export Playlist</button>
+  <button id="importPlaylistBtn" class="btn">Import Playlist</button>
+  <input type="file" id="importPlaylistInput" style="display:none;" />
+</div>
+
+<!-- Admin -->
+<button id="adminBtn">Admin Login</button>
+<div id="adminPanel">
+  <strong>Admin Panel</strong>
+  <p>Password: DSD2562025</p>
+</div>
+
+<!-- reCAPTCHA lock -->
+<div id="locked">
+  <div class="g-recaptcha" data-sitekey="6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ" data-callback="unlockSite"></div>
+</div>
+
+<div id="player"></div>
+
+<script>
+const YT_API_KEY = "AIzaSyDkXj66lPy0lC7sRrGfXzFk7dww0c_jkg0";
+const ADMIN_PW = "DSD2562025";
+
+const titleQuoteEl = document.getElementById("titleQuote");
+const queryInput = document.getElementById("query");
+const searchBtn = document.getElementById("search");
+const resultsDiv = document.getElementById("results");
+const nowPlaying = document.getElementById("nowPlaying");
+const pauseBtn = document.getElementById("pauseBtn");
+const seekBar = document.getElementById("seekBar");
+const currentTimeEl = document.getElementById("currentTime");
+const totalTimeEl = document.getElementById("totalTime");
+const timeDisplay = document.getElementById("timeDisplay");
+
+const playlistEl = document.getElementById("playlist");
+let playlist = [];
+
+const adminBtn = document.getElementById("adminBtn");
+const adminPanel = document.getElementById("adminPanel");
+
+let ytPlayer, isPaused=false, updateInterval;
+
+const TITLE_QUOTES=["click me!","this site goes hard","hello","spotify sucks"];
+function changeQuote(){ titleQuoteEl.textContent=TITLE_QUOTES[Math.floor(Math.random()*TITLE_QUOTES.length)]; }
+setInterval(changeQuote,5000);
+
+async function searchYT(query){
+  resultsDiv.innerHTML="Searching...";
+  const url=`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=6&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  renderResults(data.items||[]);
+}
+
+function renderResults(items){
+  resultsDiv.innerHTML="";
+  if(!items.length){ resultsDiv.textContent="No results."; return; }
+  items.forEach(item=>{
+    const vid=item.id.videoId;
+    const title=item.snippet.title;
+    const channel=item.snippet.channelTitle;
+    const thumb=item.snippet.thumbnails?.medium?.url||"";
+    const div=document.createElement("div");
+    div.className="result-item";
+    div.innerHTML=`<img src="${thumb}"><div class="info"><strong>${title}</strong><span>${channel}</span></div><button>➕</button>`;
+    div.querySelector(".info").addEventListener("click",()=>playAudio(vid,title,channel));
+    div.querySelector("button").addEventListener("click",()=>addToPlaylist({videoId:vid,title,channel}));
+    resultsDiv.appendChild(div);
+  });
+}
+
+function playAudio(videoId,title,channel){
+  nowPlaying.style.display="block";
+  pauseBtn.style.display="inline-block";
+  seekBar.style.display="block";
+  timeDisplay.style.display="flex";
+  nowPlaying.textContent=`Now Playing: ${title} — ${channel}`;
+  if(ytPlayer) ytPlayer.loadVideoById(videoId);
+  else ytPlayer=new YT.Player('player',{height:'0',width:'0',videoId:videoId,events:{onReady:e=>e.target.playVideo(),onStateChange:onPlayerStateChange}});
+}
+
+pauseBtn.addEventListener("click",()=>{
+  if(!ytPlayer)return;
+  if(isPaused){ ytPlayer.playVideo(); pauseBtn.textContent="⏸ Pause"; } 
+  else { ytPlayer.pauseVideo(); pauseBtn.textContent="▶ Play"; }
+  isPaused=!isPaused;
+});
+
+seekBar.addEventListener("input",()=>{ if(ytPlayer) ytPlayer.seekTo(seekBar.value/100*ytPlayer.getDuration(),true); });
+
+function onPlayerStateChange(e){
+  clearInterval(updateInterval);
+  if(e.data===YT.PlayerState.PLAYING){
+    updateInterval=setInterval(()=>{
+      const dur=ytPlayer.getDuration(), cur=ytPlayer.getCurrentTime();
+      if(dur>0){ seekBar.value=(cur/dur)*100; currentTimeEl.textContent=formatTime(cur); totalTimeEl.textContent=formatTime(dur); }
+    },500);
+  }
+}
+
+function formatTime(sec){ const m=Math.floor(sec/60), s=Math.floor(sec%60); return m+":"+s.toString().padStart(2,"0"); }
+
+function addToPlaylist(song){ playlist.push(song); renderPlaylist(); }
+function renderPlaylist(){
+  playlistEl.innerHTML="";
+  if(!playlist.length){ const li=document.createElement("li"); li.style.color="#aaa"; li.textContent="Playlist is empty."; playlistEl.appendChild(li); return; }
+  playlist.forEach((song,i)=>{
+    const li=document.createElement("li");
+    li.innerHTML=`<div style="flex:1; cursor:pointer;">${song.title} — ${song.channel}</div><button>❌</button>`;
+    li.querySelector("div").addEventListener("click",()=>playAudio(song.videoId,song.title,song.channel));
+    li.querySelector("button").addEventListener("click",(e)=>{ e.stopPropagation(); playlist.splice(i,1); renderPlaylist(); });
+    playlistEl.appendChild(li);
+  });
+}
+
+document.getElementById("exportPlaylistBtn").addEventListener("click",()=>{
+  if(!playlist.length) return alert("Playlist empty!");
+  const blob=new Blob([JSON.stringify(playlist,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="playlist.json"; a.click(); URL.revokeObjectURL(a.href);
+});
+
+document.getElementById("importPlaylistBtn").addEventListener("click",()=>document.getElementById("importPlaylistInput").click());
+document.getElementById("importPlaylistInput").addEventListener("change",(e)=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{ try{ playlist=JSON.parse(reader.result); renderPlaylist(); } catch(err){ alert("Invalid JSON"); } };
+  reader.readAsText(file);
+});
+
+// Admin Login
+adminBtn.addEventListener("click",()=>{
+  const pw = prompt("Enter admin password:");
+  if(pw===ADMIN_PW) adminPanel.classList.add("open");
+  else if(pw!==null) alert("Incorrect password!");
+});
+
+// reCAPTCHA unlock
+function unlockSite(){ document.getElementById("locked").style.display="none"; }
+
+searchBtn.addEventListener("click",()=>searchYT(queryInput.value));
+queryInput.addEventListener("keypress",e=>{ if(e.key==="Enter") searchYT(queryInput.value); });
+
+// Load YouTube IFrame API
+let tag=document.createElement('script'); tag.src="https://www.youtube.com/iframe_api"; document.body.appendChild(tag);
+</script>
 
-  <div id="adminPanel" role="region" aria-label="Admin Panel">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-      <strong style="color:#fff">Admin Panel</strong>
-      <button id="adminLogout" class="btn ghost" title="Close panel">Close</button>
-    </div>
-
-    <div class="admin-row">
-      <label>reCAPTCHA</label>
-      <div class="toggle">
-        <button id="recapToggle" class="btn">Disable</button>
-      </div>
-    </div>
-
-    <div class="admin-row">
-      <label>Random Quotes</label>
-      <div class="toggle">
-        <button id="quotesToggle" class="btn">Disable</button>
-      </div>
-    </div>
-
-    <div class="admin-row" style="flex-direction:column; align-items:flex-start;">
-      <label style="width:100%;">Background Gradient Presets <span class="small">(admin only)</span></label>
-      <div class="admin-actions" style="width:100%;">
-        <button class="preset" data-preset="purpleNight">Purple Night</button>
-        <button class="preset" data-preset="blueFade">Ocean Blue</button>
-        <button class="preset" data-preset="sunset">Sunset Vibes</button>
-        <button class="preset" data-preset="matrix">Neon Matrix</button>
-        <button class="preset" data-preset="galaxy">Galaxy</button>
-      </div>
-    </div>
-
-    <!-- Activity Log (Option C: floating/persistent) -->
-    <div id="activityLog" aria-live="polite" role="status">
-      <div id="activityLogHeader">
-        <strong style="color:#fff;font-size:.95rem;">Activity Log</strong>
-        <div style="display:flex;gap:6px;align-items:center;">
-          <button id="exportLogBtn" class="btn ghost" title="Export log">Export</button>
-          <button id="clearLogBtn" class="btn ghost" title="Clear log">Clear</button>
-        </div>
-      </div>
-      <ul id="activityList" aria-label="Admin activity list"></ul>
-    </div>
-
-    <div style="margin-top:8px;font-size:.82rem;color:#bfbfd3">
-      <div><strong>Password:</strong> client-only admin password is <code style="background:#111;padding:2px 6px;border-radius:4px;color:#9b9bff">DSD2562025</code></div>
-      <div class="small" style="margin-top:6px;">All settings persist locally (localStorage). Visitors cannot change these UI options.</div>
-    </div>
-  </div>
-
-  <!-- MAIN UI -->
-  <div id="titleWrapper" tabindex="0">
-    <h1 id="mainTitle">DSD256 Music Player — Music Search</h1>
-    <div id="titleQuote"></div>
-  </div>
-
-  <div class="search-box" role="search" aria-label="Search for music">
-    <input id="query" type="text" placeholder="Search for a song..." aria-label="Search input" />
-    <button id="search">Search</button>
-  </div>
-
-  <div id="player-section" aria-live="polite">
-    <div id="nowPlaying"></div>
-    <button id="pauseBtn">⏸ Pause</button>
-    <input type="range" id="seekBar" value="0" min="0" max="100" />
-    <div id="timeDisplay"><span id="currentTime">0:00</span><span id="totalTime">0:00</span></div>
-  </div>
-
-  <div id="results" class="results" aria-label="Search results"></div>
-
-  <div id="player"></div> <!-- invisible YouTube iframe inserted by API -->
-
-  <div class="disclaimer">© 2025 DSD256 — Music Search — audio streamed via YouTube API. We are not affiliated with Spotify or YouTube.</div>
-
-  <script>
-    /* ============== Settings & constants ============== */
-    const STORAGE_KEYS = {
-      RECAP: 'dsd_recap_enabled',
-      QUOTES: 'dsd_quotes_enabled',
-      PRESET: 'dsd_bg_preset',
-      LOG: 'dsd_activity_log'
-    };
-    const ADMIN_PW = "DSD2562025";
-
-    const YT_API_KEY = "AIzaSyDkXj66lPy0lC7sRrGfXzFk7dww0c_jkg0";
-
-    const TITLE_QUOTES = [
-      "click me!",
-      "jerry l is W",
-      "prss ctrl+shift+qq",
-      "please don't block this site",
-      "pin oak pmo",
-      "don't fail your classes",
-      "not my prob if you get caught",
-      "hello",
-      "this site kinda goes hard ngl",
-      "spotify sucks",
-    ];
-
-    const PRESETS = {
-      purpleNight: "linear-gradient(135deg,#0f0b20,#2e0f5a)",
-      blueFade:     "linear-gradient(135deg,#071232,#123a6b)",
-      sunset:       "linear-gradient(135deg,#ff6a88,#ff9a58)",
-      matrix:       "linear-gradient(135deg,#021104,#0b7a3a)",
-      galaxy:       "linear-gradient(135deg,#1b0036,#06113a)"
-    };
-
-    // DOM refs
-    const titleQuoteEl = document.getElementById("titleQuote");
-    const titleWrapper = document.getElementById("titleWrapper");
-    const adminBtn = document.getElementById("adminBtn");
-    const adminPanel = document.getElementById("adminPanel");
-    const adminLogout = document.getElementById("adminLogout");
-    const recapToggle = document.getElementById("recapToggle");
-    const quotesToggle = document.getElementById("quotesToggle");
-    const presetButtons = document.querySelectorAll(".preset");
-    const lockedOverlay = document.getElementById("locked");
-    const activityListEl = document.getElementById("activityList");
-    const clearLogBtn = document.getElementById("clearLogBtn");
-    const exportLogBtn = document.getElementById("exportLogBtn");
-
-    // player refs
-    const searchBtn = document.getElementById("search");
-    const queryInput = document.getElementById("query");
-    const resultsDiv = document.getElementById("results");
-    const nowPlaying = document.getElementById("nowPlaying");
-    const pauseBtn = document.getElementById("pauseBtn");
-    const seekBar = document.getElementById("seekBar");
-    const currentTimeEl = document.getElementById("currentTime");
-    const totalTimeEl = document.getElementById("totalTime");
-    const timeDisplay = document.getElementById("timeDisplay");
-
-    // runtime state
-    let recaptchaEnabled = true;
-    let recaptchaVerified = false; // only true after unlockSite called (token-based in real world)
-    let quotesEnabled = true;
-    let currentPreset = 'purpleNight';
-
-    // youtube player state
-    let ytPlayer = null;
-    let isPaused = false;
-    let updateInterval = null;
-
-    /* ============== Activity Log helpers ============== */
-    const MAX_LOG = 50;
-
-    function loadLog() {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEYS.LOG);
-        if (!raw) return [];
-        return JSON.parse(raw);
-      } catch (e) {
-        return [];
-      }
-    }
-    function saveLog(arr) {
-      try {
-        localStorage.setItem(STORAGE_KEYS.LOG, JSON.stringify(arr.slice(0, MAX_LOG)));
-      } catch (e) {
-        console.error("Failed to save log", e);
-      }
-    }
-    function addLog(text) {
-      const ts = new Date().toISOString();
-      const list = loadLog();
-      list.unshift({ ts, text }); // newest first
-      if (list.length > MAX_LOG) list.length = MAX_LOG;
-      saveLog(list);
-      renderLog();
-    }
-    function clearLogKeepNote() {
-      // push an entry about clearing, then remove older entries but keep the clear action so admin sees it
-      const list = loadLog();
-      const ts = new Date().toISOString();
-      list.unshift({ ts, text: "🗑️ Admin cleared activity log" });
-      // keep only this clearing entry
-      saveLog([ { ts, text: "🗑️ Admin cleared activity log" } ]);
-      renderLog();
-    }
-    function exportLog() {
-      const list = loadLog();
-      const blob = new Blob([JSON.stringify(list, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `dsd256-activity-log-${new Date().toISOString()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-    function renderLog() {
-      const list = loadLog();
-      activityListEl.innerHTML = "";
-      if (!list.length) {
-        const li = document.createElement('li');
-        li.className = 'log-item';
-        li.innerHTML = `<div style="opacity:.9">No activity yet.</div>`;
-        activityListEl.appendChild(li);
-        return;
-      }
-      list.forEach(entry => {
-        const li = document.createElement('li');
-        li.className = 'log-item';
-        const ts = new Date(entry.ts);
-        const tsStr = ts.toLocaleString();
-        const left = document.createElement('div');
-        left.style.flex = '1';
-        left.textContent = entry.text || '';
-        const right = document.createElement('div');
-        right.className = 'log-ts';
-        right.textContent = tsStr;
-        li.appendChild(left);
-        li.appendChild(right);
-        activityListEl.appendChild(li);
-      });
-    }
-
-    clearLogBtn.addEventListener('click', () => {
-      if (!confirm("Clear activity log? This will keep a single 'cleared' entry.")) return;
-      clearLogKeepNote();
-    });
-    exportLogBtn.addEventListener('click', () => exportLog());
-
-    /* ============== UTIL helpers ============== */
-    function storageGetBool(key, defaultVal) {
-      const raw = localStorage.getItem(key);
-      if (raw === null) return defaultVal;
-      return raw === 'true';
-    }
-    function storageSetBool(key, val) {
-      localStorage.setItem(key, val ? 'true' : 'false');
-    }
-    function storageGetString(key, defaultVal) {
-      const raw = localStorage.getItem(key);
-      if (raw === null) return defaultVal;
-      return raw;
-    }
-    function storageSetString(key, val) {
-      localStorage.setItem(key, String(val));
-    }
-
-    function pickRandom(arr, avoid) {
-      if (!arr.length) return "";
-      if (arr.length === 1) return arr[0];
-      let idx;
-      do { idx = Math.floor(Math.random() * arr.length); } while (arr[idx] === avoid);
-      return arr[idx];
-    }
-
-    /* ============== Initialization: load saved settings or defaults ============== */
-    (function loadSettings() {
-      // read saved or fallback defaults
-      recaptchaEnabled = storageGetBool(STORAGE_KEYS.RECAP, true); // default: true
-      quotesEnabled = storageGetBool(STORAGE_KEYS.QUOTES, true);   // default: true
-      currentPreset = storageGetString(STORAGE_KEYS.PRESET, 'purpleNight'); // default first-time Purple Night
-
-      // apply preset
-      applyPreset(currentPreset);
-
-      // if recaptcha disabled, mark verified so searches work
-      if (!recaptchaEnabled) {
-        recaptchaVerified = true;
-        if (lockedOverlay) lockedOverlay.classList.add('hidden');
-      } else {
-        // if enabled, show overlay until user verifies (unlockSite will set verified)
-        recaptchaVerified = false;
-        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
-      }
-
-      // initialize title quote text or hide if disabled
-      if (!quotesEnabled) {
-        titleQuoteEl.style.opacity = 0;
-      } else {
-        const first = pickRandom(TITLE_QUOTES, null);
-        titleQuoteEl.textContent = first;
-      }
-
-      // update admin UI text/states
-      initAdminUI();
-      highlightActivePreset();
-      renderLog();
-    })();
-
-    /* ============== Title / Quotes handling ============== */
-    function changeQuote() {
-      if (!quotesEnabled) return;
-      titleQuoteEl.style.opacity = 0;
-      setTimeout(() => {
-        const next = pickRandom(TITLE_QUOTES, titleQuoteEl.textContent);
-        titleQuoteEl.textContent = next;
-        titleQuoteEl.style.opacity = 1;
-      }, 180);
-    }
-
-    titleWrapper.addEventListener("click", () => {
-      changeQuote();
-      titleWrapper.style.transform = "scale(1.02)";
-      setTimeout(() => titleWrapper.style.transform = "", 140);
-    });
-    titleWrapper.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleWrapper.click(); }
-    });
-
-    /* ============== reCAPTCHA (v2) callback ============== */
-    function unlockSite(token) {
-      // token is not validated here (client-only). In real production, validate server-side.
-      recaptchaVerified = true;
-      if (lockedOverlay) lockedOverlay.classList.add('hidden');
-      addLog('✅ reCAPTCHA verified');
-    }
-    window.unlockSite = unlockSite; // reCAPTCHA calls this global
-
-    /* ============== Admin login & panel flow ============== */
-    function openAdminPanel() {
-      adminPanel.classList.add("open");
-      adminBtn.style.opacity = "0.6";
-      addLog('✔️ Admin logged in');
-    }
-    function closeAdminPanel() {
-      adminPanel.classList.remove("open");
-      adminBtn.style.opacity = "1";
-      addLog('✖️ Admin logged out');
-    }
-
-    adminBtn.addEventListener("click", () => {
-      if (adminPanel.classList.contains("open")) { closeAdminPanel(); return; }
-      const pw = prompt("Admin Password:");
-      if (pw === null) return;
-      if (pw === ADMIN_PW) {
-        openAdminPanel();
-      } else {
-        alert("Access Denied");
-        addLog('🔒 Failed admin login attempt');
-      }
-    });
-    adminLogout.addEventListener("click", () => closeAdminPanel());
-
-    // close admin when clicking outside
-    document.addEventListener("click", (e) => {
-      if (!adminPanel.classList.contains("open")) return;
-      const inside = adminPanel.contains(e.target) || adminBtn.contains(e.target);
-      if (!inside) closeAdminPanel();
-    });
-
-    /* ============== Admin controls (persist to localStorage) ============== */
-    function refreshRecaptchaUI() {
-      // toggle button text/styling
-      if (recaptchaEnabled) {
-        recapToggle.textContent = "Disable";
-        recapToggle.classList.remove("ghost");
-        recapToggle.classList.add("btn");
-        // if not verified, show overlay
-        if (!recaptchaVerified) {
-          if (lockedOverlay) lockedOverlay.classList.remove('hidden');
-        } else {
-          if (lockedOverlay) lockedOverlay.classList.add('hidden');
-        }
-      } else {
-        recapToggle.textContent = "Enable";
-        recapToggle.classList.remove("btn");
-        recapToggle.classList.add("btn", "ghost");
-        // hide overlay and treat as verified
-        if (lockedOverlay) lockedOverlay.classList.add('hidden');
-        recaptchaVerified = true;
-      }
-    }
-
-    recapToggle.addEventListener("click", () => {
-      recaptchaEnabled = !recaptchaEnabled;
-      storageSetBool(STORAGE_KEYS.RECAP, recaptchaEnabled);
-      if (recaptchaEnabled) {
-        // enabling captcha: require new verification
-        recaptchaVerified = false;
-        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
-        addLog('🔧 reCAPTCHA enabled');
-      } else {
-        recaptchaVerified = true;
-        addLog('🔧 reCAPTCHA disabled');
-      }
-      refreshRecaptchaUI();
-    });
-
-    function refreshQuotesUI() {
-      if (quotesEnabled) {
-        quotesToggle.textContent = "Disable";
-        quotesToggle.classList.remove("ghost");
-        quotesToggle.classList.add("btn");
-        titleQuoteEl.style.opacity = 1;
-      } else {
-        quotesToggle.textContent = "Enable";
-        quotesToggle.classList.remove("btn");
-        quotesToggle.classList.add("btn", "ghost");
-        titleQuoteEl.style.opacity = 0;
-      }
-    }
-
-    quotesToggle.addEventListener("click", () => {
-      quotesEnabled = !quotesEnabled;
-      storageSetBool(STORAGE_KEYS.QUOTES, quotesEnabled);
-      addLog(quotesEnabled ? '🔧 Quotes enabled' : '🔧 Quotes disabled');
-      refreshQuotesUI();
-    });
-
-    // apply and save preset
-    function applyPreset(name) {
-      const css = PRESETS[name] || PRESETS.purpleNight;
-      document.body.style.background = css;
-      currentPreset = name;
-      storageSetString(STORAGE_KEYS.PRESET, name);
-      highlightActivePreset();
-      addLog(`🎨 Background set to ${presetPrettyName(name)}`);
-    }
-
-    function presetPrettyName(id) {
-      switch (id) {
-        case 'purpleNight': return 'Purple Night';
-        case 'blueFade': return 'Ocean Blue';
-        case 'sunset': return 'Sunset Vibes';
-        case 'matrix': return 'Neon Matrix';
-        case 'galaxy': return 'Galaxy';
-        default: return id;
-      }
-    }
-
-    function highlightActivePreset() {
-      presetButtons.forEach(btn => {
-        if (btn.dataset.preset === currentPreset) btn.classList.add('active');
-        else btn.classList.remove('active');
-      });
-    }
-
-    presetButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const p = btn.dataset.preset;
-        applyPreset(p);
-      });
-    });
-
-    function initAdminUI() {
-      // recap toggle label
-      recapToggle.textContent = recaptchaEnabled ? "Disable" : "Enable";
-      if (!recaptchaEnabled) recapToggle.classList.add("ghost");
-
-      // quotes toggle label
-      quotesToggle.textContent = quotesEnabled ? "Disable" : "Enable";
-      if (!quotesEnabled) {
-        quotesToggle.classList.add("ghost");
-        titleQuoteEl.style.opacity = 0;
-      } else {
-        titleQuoteEl.style.opacity = 1;
-      }
-
-      highlightActivePreset();
-    }
-
-    /* ============== YouTube search & player ============== */
-    async function searchYouTube(query) {
-      resultsDiv.innerHTML = `<div style="color:#aaa;padding:12px">Searching for "${query}"…</div>`;
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`;
-      try {
-        const res = await fetch(url);
-        if (!res.ok) throw new Error("Network response not ok");
-        const data = await res.json();
-        if (!data.items || data.items.length === 0) {
-          resultsDiv.innerHTML = `<div style="color:#ccc;padding:12px">No results found.</div>`;
-          return;
-        }
-        showResults(data.items);
-      } catch (err) {
-        console.error(err);
-        resultsDiv.innerHTML = `<div style="color:#f88;padding:12px">Search failed. Check console.</div>`;
-      }
-    }
-
-    function showResults(items) {
-      resultsDiv.innerHTML = "";
-      items.forEach(item => {
-        const vid = item.id.videoId;
-        const title = item.snippet.title;
-        const channel = item.snippet.channelTitle;
-        const thumb = (item.snippet.thumbnails && item.snippet.thumbnails.medium) ? item.snippet.thumbnails.medium.url : "";
-
-        const div = document.createElement("div");
-        div.className = "result-item";
-        div.innerHTML = `
-          <img src="${thumb}" alt="thumb">
-          <div class="info">
-            <strong>${escapeHtml(title)}</strong>
-            <span>${escapeHtml(channel)}</span>
-          </div>
-        `;
-        div.addEventListener("click", () => playAudio(vid, title, channel));
-        resultsDiv.appendChild(div);
-      });
-    }
-
-    function playAudio(videoId, title, channel) {
-      // if recaptcha enabled and not verified, block
-      if (recaptchaEnabled && !recaptchaVerified) {
-        alert("Please complete the reCAPTCHA verification first.");
-        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
-        return;
-      }
-
-      nowPlaying.style.display = "block";
-      pauseBtn.style.display = "inline-block";
-      seekBar.style.display = "block";
-      timeDisplay.style.display = "flex";
-      nowPlaying.textContent = `🎧 Now Playing: ${title} — ${channel}`;
-
-      if (ytPlayer) {
-        ytPlayer.loadVideoById(videoId);
-      } else {
-        ytPlayer = new YT.Player("player", {
-          height: "0", width: "0",
-          videoId: videoId,
-          playerVars: { autoplay: 1, controls: 0, disablekb: 1 },
-          events: {
-            onReady: (e) => { e.target.playVideo(); startUpdatingSeekBar(); },
-            onStateChange: handleStateChange
-          }
-        });
-      }
-      startUpdatingSeekBar();
-    }
-
-    function handleStateChange(event) {
-      if (event.data === YT.PlayerState.PLAYING) {
-        startUpdatingSeekBar();
-        isPaused = false;
-        pauseBtn.textContent = "⏸ Pause";
-      } else if (event.data === YT.PlayerState.PAUSED) {
-        clearInterval(updateInterval);
-        isPaused = true;
-        pauseBtn.textContent = "▶️ Resume";
-      } else if (event.data === YT.PlayerState.ENDED) {
-        clearInterval(updateInterval);
-      }
-    }
-
-    function startUpdatingSeekBar() {
-      clearInterval(updateInterval);
-      updateInterval = setInterval(() => {
-        if (ytPlayer && typeof ytPlayer.getDuration === "function") {
-          const cur = ytPlayer.getCurrentTime();
-          const dur = ytPlayer.getDuration();
-          if (dur && !isNaN(dur) && dur > 0) {
-            seekBar.value = (cur / dur) * 100;
-            currentTimeEl.textContent = formatTime(cur);
-            totalTimeEl.textContent = formatTime(dur);
-          }
-        }
-      }, 400);
-    }
-
-    seekBar.addEventListener("input", () => {
-      if (ytPlayer && typeof ytPlayer.getDuration === "function") {
-        const dur = ytPlayer.getDuration();
-        const seekTo = (seekBar.value / 100) * dur;
-        ytPlayer.seekTo(seekTo, true);
-      }
-    });
-
-    pauseBtn.addEventListener("click", () => {
-      if (!ytPlayer) return;
-      if (isPaused) {
-        ytPlayer.playVideo();
-        pauseBtn.textContent = "⏸ Pause";
-        isPaused = false;
-      } else {
-        ytPlayer.pauseVideo();
-        pauseBtn.textContent = "▶️ Resume";
-        isPaused = true;
-      }
-    });
-
-    function formatTime(sec) {
-      if (!sec || isNaN(sec)) return "0:00";
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60).toString().padStart(2, "0");
-      return `${m}:${s}`;
-    }
-
-    // search interactions
-    searchBtn.addEventListener("click", () => {
-      const q = queryInput.value.trim();
-      if (!q) return;
-      if (recaptchaEnabled && !recaptchaVerified) {
-        alert("Please verify with reCAPTCHA first.");
-        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
-        return;
-      }
-      searchYouTube(q);
-    });
-
-    queryInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") searchBtn.click();
-    });
-
-    function escapeHtml(unsafe) {
-      return String(unsafe).replace(/[&<"'>]/g, function(m) {
-        return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
-      });
-    }
-
-    /* ============== Load YouTube iframe API ============== */
-    (function loadYouTubeAPI(){
-      const s = document.createElement("script");
-      s.src = "https://www.youtube.com/iframe_api";
-      document.body.appendChild(s);
-    })();
-
-    /* ============== Update UI initial states (after DOM ready) ============== */
-    (function finalizeInit() {
-      // ensure UI text matches loaded state
-      refreshRecaptchaUI();
-      refreshQuotesUI();
-      highlightActivePreset();
-      renderLog();
-      // if quotes disabled, keep quote hidden
-      if (!quotesEnabled) titleQuoteEl.style.opacity = 0;
-    })();
-
-  </script>
 </body>
 </html>
