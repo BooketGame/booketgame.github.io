@@ -1,3 +1,7 @@
+# IMPORTANT
+
+I regret to inform you that I will no longer be updating this repository. I am starting a new project you guys can look forward to. Thank you for all your support and cinsideration into helping me biuld this site. You can still fork it but I am not responsible or any bugs in the forked code. Thank you all <3
+
 # Music-Player-v1
 
 This is a sleek online music search and player powered by the YouTube API. Search for any song, stream audio directly, and control playback with a smooth, modern interface. Simple, fast, and stylish — music without the noise. 
