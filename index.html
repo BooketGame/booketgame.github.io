@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>DSD256 Music Player — Music Search</title>
 
-  <!-- Google reCAPTCHA (real) -->
+  <!-- Google reCAPTCHA v2 -->
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
   <link rel="icon" type="image/png" href="logo.png">
@@ -17,7 +17,7 @@
     body {
       margin:0;
       font-family: "Poppins", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: linear-gradient(135deg,#141414,#1e1e2f);
+      background: linear-gradient(135deg,#0f0b20,#2e0f5a); /* Purple Night default */
       color: #fff;
       display:flex;
       flex-direction:column;
@@ -47,7 +47,7 @@
     #mainTitle:hover { color: #bfaaff; transform: scale(1.01); }
     #titleQuote {
       font-size:0.85rem;
-      color:#aaa;
+      color:#ddd;
       margin-top:6px;
       min-height:1.1em;
       opacity:1;
@@ -198,7 +198,21 @@
     .admin-actions { padding-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
     .btn { background:#6c63ff; border:none; color:white; padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600; }
     .btn.ghost { background:transparent; border:1px solid rgba(255,255,255,0.06); color:#ddd; }
-    .preset { background:transparent; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:8px; cursor:pointer; font-size:.9rem; }
+
+    /* preset buttons: white text + subtle glow for readability on gradients */
+    .preset {
+      color: #fff;
+      text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding:6px 8px;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:.9rem;
+      transition: transform .12s ease, background .12s ease;
+    }
+    .preset:hover { transform: translateY(-2px); background: rgba(255,255,255,0.08); }
+    .preset.active { box-shadow: 0 6px 18px rgba(0,0,0,0.45); background: rgba(255,255,255,0.09); }
 
     /* small helpers */
     .small { font-size:0.82rem; color:#bdbbd0; }
@@ -215,13 +229,13 @@
   </style>
 </head>
 <body>
-  <!-- LOCK overlay with real reCAPTCHA -->
+  <!-- LOCK overlay with real reCAPTCHA (v2 checkbox) -->
   <div id="locked" role="dialog" aria-modal="true">
     <div class="lock-box" role="document" aria-label="Verification required">
       <h2>Verify you're human to continue 🎧</h2>
       <div class="grecaptcha-wrap">
-        <!-- REAL site key -->
-        <div class="g-recaptcha" data-sitekey="6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ" data-callback="unlockSite"></div>
+        <!-- REAL site key provided earlier -->
+        <div id="grecaptcha-root" class="g-recaptcha" data-sitekey="6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ" data-callback="unlockSite"></div>
       </div>
     </div>
   </div>
@@ -250,19 +264,19 @@
     </div>
 
     <div class="admin-row" style="flex-direction:column; align-items:flex-start;">
-      <label style="width:100%;">Background Gradient Presets <span class="small">(click)</span></label>
+      <label style="width:100%;">Background Gradient Presets <span class="small">(admin only)</span></label>
       <div class="admin-actions" style="width:100%;">
         <button class="preset" data-preset="purpleNight">Purple Night</button>
-        <button class="preset" data-preset="blueFade">Blue Fade</button>
-        <button class="preset" data-preset="sunset">Sunset</button>
-        <button class="preset" data-preset="matrix">Matrix</button>
-        <button class="preset" data-preset="default">Default</button>
+        <button class="preset" data-preset="blueFade">Ocean Blue</button>
+        <button class="preset" data-preset="sunset">Sunset Vibes</button>
+        <button class="preset" data-preset="matrix">Neon Matrix</button>
+        <button class="preset" data-preset="galaxy">Galaxy</button>
       </div>
     </div>
 
     <div style="margin-top:8px;font-size:.82rem;color:#bfbfd3">
-      <div><strong>Password:</strong> your local client-only password is <code style="background:#111;padding:2px 6px;border-radius:4px;color:#9b9bff">DSD2562025</code></div>
-      <div class="small" style="margin-top:6px;">All settings are client-side only. Do not rely on this for security-sensitive control.</div>
+      <div><strong>Password:</strong> client-only admin password is <code style="background:#111;padding:2px 6px;border-radius:4px;color:#9b9bff">DSD2562025</code></div>
+      <div class="small" style="margin-top:6px;">All settings persist locally (localStorage). Visitors cannot change these UI options.</div>
     </div>
   </div>
 
@@ -291,10 +305,16 @@
   <div class="disclaimer">© 2025 DSD256 — Music Search — audio streamed via YouTube API. We are not affiliated with Spotify or YouTube.</div>
 
   <script>
-    /* ============== Settings ============== */
+    /* ============== Settings & constants ============== */
+    const STORAGE_KEYS = {
+      RECAP: 'dsd_recap_enabled',
+      QUOTES: 'dsd_quotes_enabled',
+      PRESET: 'dsd_bg_preset'
+    };
+    const ADMIN_PW = "DSD2562025";
+
     const YT_API_KEY = "AIzaSyDkXj66lPy0lC7sRrGfXzFk7dww0c_jkg0";
 
-    /* quotes */
     const TITLE_QUOTES = [
       "click me!",
       "Jerry L is W 🔥",
@@ -308,7 +328,15 @@
       "you clicked it again?? bro chill 😭"
     ];
 
-    /* elements */
+    const PRESETS = {
+      purpleNight: "linear-gradient(135deg,#0f0b20,#2e0f5a)",
+      blueFade:     "linear-gradient(135deg,#071232,#123a6b)",
+      sunset:       "linear-gradient(135deg,#ff6a88,#ff9a58)",
+      matrix:       "linear-gradient(135deg,#021104,#0b7a3a)",
+      galaxy:       "linear-gradient(135deg,#1b0036,#06113a)"
+    };
+
+    // DOM refs
     const titleQuoteEl = document.getElementById("titleQuote");
     const titleWrapper = document.getElementById("titleWrapper");
     const adminBtn = document.getElementById("adminBtn");
@@ -319,165 +347,7 @@
     const presetButtons = document.querySelectorAll(".preset");
     const lockedOverlay = document.getElementById("locked");
 
-    /* admin state (client-side only) */
-    let recaptchaEnabled = true;    // default on
-    let recaptchaVerified = false;  // becomes true when unlockSite runs
-    let quotesEnabled = true;       // default on
-
-    // helper: random pick without immediate repeat
-    function pickRandom(arr, avoid) {
-      if (!arr.length) return "";
-      if (arr.length === 1) return arr[0];
-      let idx;
-      do { idx = Math.floor(Math.random() * arr.length); } while (arr[idx] === avoid);
-      return arr[idx];
-    }
-
-    // initialize quote
-    (function initQuote() {
-      if (!quotesEnabled) { titleQuoteEl.style.opacity = 0; return; }
-      const first = pickRandom(TITLE_QUOTES, null);
-      titleQuoteEl.textContent = first;
-    })();
-
-    // quote click behavior
-    function changeQuote() {
-      if (!quotesEnabled) return;
-      titleQuoteEl.style.opacity = 0;
-      setTimeout(() => {
-        const next = pickRandom(TITLE_QUOTES, titleQuoteEl.textContent);
-        titleQuoteEl.textContent = next;
-        titleQuoteEl.style.opacity = 1;
-      }, 180);
-    }
-
-    // attach click to wrapper (title + quote)
-    titleWrapper.addEventListener("click", () => {
-      changeQuote();
-      // subtle scale feedback
-      titleWrapper.style.transform = "scale(1.02)";
-      setTimeout(() => titleWrapper.style.transform = "", 140);
-    });
-    // keyboard accessibility
-    titleWrapper.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleWrapper.click(); }
-    });
-
-    /* ============== reCAPTCHA handling ============== */
-    // called by real reCAPTCHA when user completes verification
-    function unlockSite(token) {
-      // token is unused client-side, but we mark verified.
-      recaptchaVerified = true;
-      if (lockedOverlay) lockedOverlay.classList.add("hidden");
-    }
-    // allow global access (YouTube reCAPTCHA triggers call this name)
-    window.unlockSite = unlockSite;
-
-    // toggle showing/hiding overlay based on recaptchaEnabled and verified state
-    function refreshRecaptchaDisplay() {
-      if (!recaptchaEnabled) {
-        // disable: hide overlay and mark verified so searches work
-        if (lockedOverlay) lockedOverlay.classList.add("hidden");
-        recaptchaVerified = true;
-        recapToggle.textContent = "Enable";
-        recapToggle.classList.remove("btn");
-        recapToggle.classList.add("btn", "ghost");
-        recapToggle.style.background = "transparent";
-        return;
-      }
-      // enabled
-      recapToggle.textContent = "Disable";
-      recapToggle.classList.remove("ghost");
-      recapToggle.classList.add("btn");
-      // if not verified yet, show overlay
-      if (!recaptchaVerified) {
-        if (lockedOverlay) lockedOverlay.classList.remove("hidden");
-      } else {
-        if (lockedOverlay) lockedOverlay.classList.add("hidden");
-      }
-    }
-
-    // call on initial load
-    refreshRecaptchaDisplay();
-
-    /* ============== Admin login flow (client-only prompt) ============== */
-    const ADMIN_PW = "DSD2562025";
-
-    function openAdminPanel() {
-      adminPanel.classList.add("open");
-      adminBtn.style.opacity = "0.6";
-    }
-    function closeAdminPanel() {
-      adminPanel.classList.remove("open");
-      adminBtn.style.opacity = "1";
-    }
-
-    adminBtn.addEventListener("click", async () => {
-      // if already open, close
-      if (adminPanel.classList.contains("open")) { closeAdminPanel(); return; }
-
-      // ask for password via prompt
-      const pw = prompt("Admin Password:");
-      if (pw === null) { /* user cancelled */ return; }
-      if (pw === ADMIN_PW) {
-        openAdminPanel();
-      } else {
-        alert("Access Denied");
-      }
-    });
-
-    adminLogout.addEventListener("click", () => closeAdminPanel());
-
-    /* ============== Admin controls actions ============== */
-    recapToggle.addEventListener("click", () => {
-      recaptchaEnabled = !recaptchaEnabled;
-      // if enabling, we require verification again
-      if (recaptchaEnabled) {
-        recaptchaVerified = false;
-      }
-      refreshRecaptchaDisplay();
-    });
-
-    quotesToggle.addEventListener("click", () => {
-      quotesEnabled = !quotesEnabled;
-      if (!quotesEnabled) {
-        titleQuoteEl.style.opacity = 0;
-        quotesToggle.textContent = "Enable";
-        quotesToggle.classList.remove("btn");
-        quotesToggle.classList.add("btn", "ghost");
-        // disable pointer interactions for quote clicks by ignoring in handler (already checks flag)
-      } else {
-        titleQuoteEl.style.opacity = 1;
-        // set a fresh quote
-        titleQuoteEl.textContent = pickRandom(TITLE_QUOTES, titleQuoteEl.textContent);
-        quotesToggle.textContent = "Disable";
-        quotesToggle.classList.remove("ghost");
-        quotesToggle.classList.add("btn");
-      }
-    });
-
-    // gradient presets
-    const PRESETS = {
-      purpleNight: "linear-gradient(135deg,#0f0b20,#2e0f5a)",
-      blueFade:     "linear-gradient(135deg,#071232,#123a6b)",
-      sunset:       "linear-gradient(135deg,#ff6a88,#ff9a58)",
-      matrix:       "linear-gradient(135deg,#021104,#0b7a3a)",
-      default:      "linear-gradient(135deg,#141414,#1e1e2f)"
-    };
-
-    function applyPreset(name) {
-      const css = PRESETS[name] || PRESETS.default;
-      document.body.style.background = css;
-    }
-
-    presetButtons.forEach(btn => {
-      btn.addEventListener("click", () => {
-        const p = btn.dataset.preset;
-        applyPreset(p);
-      });
-    });
-
-    /* ============== YouTube search & player (same as before) ============== */
+    // player refs
     const searchBtn = document.getElementById("search");
     const queryInput = document.getElementById("query");
     const resultsDiv = document.getElementById("results");
@@ -488,10 +358,230 @@
     const totalTimeEl = document.getElementById("totalTime");
     const timeDisplay = document.getElementById("timeDisplay");
 
+    // runtime state
+    let recaptchaEnabled = true;
+    let recaptchaVerified = false; // only true after unlockSite called (token-based in real world)
+    let quotesEnabled = true;
+    let currentPreset = 'purpleNight';
+
+    // youtube player state
     let ytPlayer = null;
     let isPaused = false;
     let updateInterval = null;
 
+    /* ============== UTIL helpers ============== */
+    function storageGetBool(key, defaultVal) {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return defaultVal;
+      return raw === 'true';
+    }
+    function storageSetBool(key, val) {
+      localStorage.setItem(key, val ? 'true' : 'false');
+    }
+    function storageGetString(key, defaultVal) {
+      const raw = localStorage.getItem(key);
+      if (raw === null) return defaultVal;
+      return raw;
+    }
+    function storageSetString(key, val) {
+      localStorage.setItem(key, String(val));
+    }
+
+    function pickRandom(arr, avoid) {
+      if (!arr.length) return "";
+      if (arr.length === 1) return arr[0];
+      let idx;
+      do { idx = Math.floor(Math.random() * arr.length); } while (arr[idx] === avoid);
+      return arr[idx];
+    }
+
+    /* ============== Initialization: load saved settings or defaults ============== */
+    (function loadSettings() {
+      // read saved or fallback defaults
+      recaptchaEnabled = storageGetBool(STORAGE_KEYS.RECAP, true); // default: true
+      quotesEnabled = storageGetBool(STORAGE_KEYS.QUOTES, true);   // default: true
+      currentPreset = storageGetString(STORAGE_KEYS.PRESET, 'purpleNight'); // default first-time Purple Night
+
+      // apply preset
+      applyPreset(currentPreset);
+
+      // if recaptcha disabled, mark verified so searches work
+      if (!recaptchaEnabled) {
+        recaptchaVerified = true;
+        if (lockedOverlay) lockedOverlay.classList.add('hidden');
+      } else {
+        // if enabled, show overlay until user verifies (unlockSite will set verified)
+        recaptchaVerified = false;
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+      }
+
+      // initialize title quote text or hide if disabled
+      if (!quotesEnabled) {
+        titleQuoteEl.style.opacity = 0;
+      } else {
+        const first = pickRandom(TITLE_QUOTES, null);
+        titleQuoteEl.textContent = first;
+      }
+
+      // update admin UI text/states
+      initAdminUI();
+      highlightActivePreset();
+    })();
+
+    /* ============== Title / Quotes handling ============== */
+    function changeQuote() {
+      if (!quotesEnabled) return;
+      titleQuoteEl.style.opacity = 0;
+      setTimeout(() => {
+        const next = pickRandom(TITLE_QUOTES, titleQuoteEl.textContent);
+        titleQuoteEl.textContent = next;
+        titleQuoteEl.style.opacity = 1;
+      }, 180);
+    }
+
+    titleWrapper.addEventListener("click", () => {
+      changeQuote();
+      titleWrapper.style.transform = "scale(1.02)";
+      setTimeout(() => titleWrapper.style.transform = "", 140);
+    });
+    titleWrapper.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleWrapper.click(); }
+    });
+
+    /* ============== reCAPTCHA (v2) callback ============== */
+    function unlockSite(token) {
+      // token is not validated here (client-only). In real production, validate server-side.
+      recaptchaVerified = true;
+      if (lockedOverlay) lockedOverlay.classList.add('hidden');
+    }
+    window.unlockSite = unlockSite; // reCAPTCHA calls this global
+
+    /* ============== Admin login & panel flow ============== */
+    function openAdminPanel() {
+      adminPanel.classList.add("open");
+      adminBtn.style.opacity = "0.6";
+    }
+    function closeAdminPanel() {
+      adminPanel.classList.remove("open");
+      adminBtn.style.opacity = "1";
+    }
+
+    adminBtn.addEventListener("click", () => {
+      if (adminPanel.classList.contains("open")) { closeAdminPanel(); return; }
+      const pw = prompt("Admin Password:");
+      if (pw === null) return;
+      if (pw === ADMIN_PW) {
+        openAdminPanel();
+      } else {
+        alert("Access Denied");
+      }
+    });
+    adminLogout.addEventListener("click", closeAdminPanel);
+
+    // close admin when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!adminPanel.classList.contains("open")) return;
+      const inside = adminPanel.contains(e.target) || adminBtn.contains(e.target);
+      if (!inside) closeAdminPanel();
+    });
+
+    /* ============== Admin controls (persist to localStorage) ============== */
+    function refreshRecaptchaUI() {
+      // toggle button text/styling
+      if (recaptchaEnabled) {
+        recapToggle.textContent = "Disable";
+        recapToggle.classList.remove("ghost");
+        recapToggle.classList.add("btn");
+        // if not verified, show overlay
+        if (!recaptchaVerified) {
+          if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+        } else {
+          if (lockedOverlay) lockedOverlay.classList.add('hidden');
+        }
+      } else {
+        recapToggle.textContent = "Enable";
+        recapToggle.classList.remove("btn");
+        recapToggle.classList.add("btn", "ghost");
+        // hide overlay and treat as verified
+        if (lockedOverlay) lockedOverlay.classList.add('hidden');
+        recaptchaVerified = true;
+      }
+    }
+
+    recapToggle.addEventListener("click", () => {
+      recaptchaEnabled = !recaptchaEnabled;
+      storageSetBool(STORAGE_KEYS.RECAP, recaptchaEnabled);
+      if (recaptchaEnabled) {
+        // enabling captcha: require new verification
+        recaptchaVerified = false;
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
+      } else {
+        recaptchaVerified = true;
+      }
+      refreshRecaptchaUI();
+    });
+
+    function refreshQuotesUI() {
+      if (quotesEnabled) {
+        quotesToggle.textContent = "Disable";
+        quotesToggle.classList.remove("ghost");
+        quotesToggle.classList.add("btn");
+        titleQuoteEl.style.opacity = 1;
+      } else {
+        quotesToggle.textContent = "Enable";
+        quotesToggle.classList.remove("btn");
+        quotesToggle.classList.add("btn", "ghost");
+        titleQuoteEl.style.opacity = 0;
+      }
+    }
+
+    quotesToggle.addEventListener("click", () => {
+      quotesEnabled = !quotesEnabled;
+      storageSetBool(STORAGE_KEYS.QUOTES, quotesEnabled);
+      refreshQuotesUI();
+    });
+
+    // apply and save preset
+    function applyPreset(name) {
+      const css = PRESETS[name] || PRESETS.purpleNight;
+      document.body.style.background = css;
+      currentPreset = name;
+      storageSetString(STORAGE_KEYS.PRESET, name);
+      highlightActivePreset();
+    }
+
+    function highlightActivePreset() {
+      presetButtons.forEach(btn => {
+        if (btn.dataset.preset === currentPreset) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
+
+    presetButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = btn.dataset.preset;
+        applyPreset(p);
+      });
+    });
+
+    function initAdminUI() {
+      // recap toggle label
+      recapToggle.textContent = recaptchaEnabled ? "Disable" : "Enable";
+      if (!recaptchaEnabled) recapToggle.classList.add("ghost");
+
+      // quotes toggle label
+      quotesToggle.textContent = quotesEnabled ? "Disable" : "Enable";
+      if (!quotesEnabled) {
+        quotesToggle.classList.add("ghost");
+        titleQuoteEl.style.opacity = 0;
+      } else {
+        titleQuoteEl.style.opacity = 1;
+      }
+
+      highlightActivePreset();
+    }
+
+    /* ============== YouTube search & player ============== */
     async function searchYouTube(query) {
       resultsDiv.innerHTML = `<div style="color:#aaa;padding:12px">Searching for "${query}"…</div>`;
       const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&q=${encodeURIComponent(query)}&key=${YT_API_KEY}`;
@@ -536,11 +626,10 @@
       // if recaptcha enabled and not verified, block
       if (recaptchaEnabled && !recaptchaVerified) {
         alert("Please complete the reCAPTCHA verification first.");
-        if (lockedOverlay) lockedOverlay.classList.remove("hidden");
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
         return;
       }
 
-      // show UI
       nowPlaying.style.display = "block";
       pauseBtn.style.display = "inline-block";
       seekBar.style.display = "block";
@@ -624,10 +713,9 @@
     searchBtn.addEventListener("click", () => {
       const q = queryInput.value.trim();
       if (!q) return;
-      // ensure captcha done (overlay gone) if enabled
       if (recaptchaEnabled && !recaptchaVerified) {
         alert("Please verify with reCAPTCHA first.");
-        if (lockedOverlay) lockedOverlay.classList.remove("hidden");
+        if (lockedOverlay) lockedOverlay.classList.remove('hidden');
         return;
       }
       searchYouTube(q);
@@ -637,7 +725,6 @@
       if (e.key === "Enter") searchBtn.click();
     });
 
-    // helper: escape HTML for safety in result text
     function escapeHtml(unsafe) {
       return String(unsafe).replace(/[&<"'>]/g, function(m) {
         return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
@@ -651,20 +738,15 @@
       document.body.appendChild(s);
     })();
 
-    /* ============== Init UI text for toggles on load ============== */
-    (function initAdminUI() {
-      recapToggle.textContent = recaptchaEnabled ? "Disable" : "Enable";
-      if (!recaptchaEnabled) { recapToggle.classList.add("ghost"); }
-      quotesToggle.textContent = quotesEnabled ? "Disable" : "Enable";
-      if (!quotesEnabled) { quotesToggle.classList.add("ghost"); titleQuoteEl.style.opacity = 0; }
+    /* ============== Update UI initial states (after DOM ready) ============== */
+    (function finalizeInit() {
+      // ensure UI text matches loaded state
+      refreshRecaptchaUI();
+      refreshQuotesUI();
+      highlightActivePreset();
+      // if quotes disabled, keep quote hidden
+      if (!quotesEnabled) titleQuoteEl.style.opacity = 0;
     })();
-
-    /* ============== Optional: close admin if click outside ============== */
-    document.addEventListener("click", (e) => {
-      if (!adminPanel.classList.contains("open")) return;
-      const inside = adminPanel.contains(e.target) || adminBtn.contains(e.target);
-      if (!inside) closeAdminPanel();
-    });
 
   </script>
 </body>
