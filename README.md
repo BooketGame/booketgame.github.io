@@ -4,6 +4,10 @@ This is a sleek online music search and player powered by the YouTube API. Searc
 
 DM @bigwhitething101 on discord. DMs are open, I'm pretty sure I removed all ads for this. I will also update frequently because I have a lot of time and want yall to have the best experence yall can possibly get. 
 
+## ACHEVEMENTS
+
+October 22 2025, reached our 100th commit.
+
 ## UPDATE LOG
 
 ### v1.0.0 (October 7 2025)
