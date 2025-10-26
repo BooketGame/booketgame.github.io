@@ -45,11 +45,6 @@ example:
 - Major UI update and the header changes too.
 - ReCaptcha security update.
 
-### v3.0.0
-
-- Another Major UI update.
-- Admin panel for me to control almost everthing on the site. 
-
 ## Credits
 These amazing people have contributed greatly to DSD256 over it's development:
 
