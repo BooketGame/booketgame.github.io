@@ -1,6 +1,6 @@
 # IMPORTANT
 
-I regret to inform you that I will no longer be updating this repository. I am starting a new project you guys can look forward to. Thank you for all your support and cinsideration into helping me biuld this site. You can still fork it but I am not responsible or any bugs in the forked code. Thank you all <3
+I regret to inform you that I will no longer be updating this repository. You may still use it free of charge anytime and anywhere. I am starting a new project you guys can look forward to. Thank you for all your support and consideration <3
 
 # Music-Player-v1
 
@@ -10,7 +10,7 @@ DM @bigwhitething101 on discord. DMs are open, I'm pretty sure I removed all ads
 
 ## ACHEVEMENTS
 
-October 22 2025, reached our 100th commit.
+As of October 22 2025, we had reached our 100th commit.
 
 ## UPDATE LOG
 
@@ -50,15 +50,10 @@ example:
 - Another Major UI update.
 - Admin panel for me to control almost everthing on the site. 
 
-## Selfhost
-⚠️ IMPORTANT ⚠️
-
-It is imposible. 
-
 ## Credits
 These amazing people have contributed greatly to DSD256 over it's development:
 
-[BooketGame](https://GitHub.com/booketgame) - Lead Developer and founder of DSD256
+[BooketGame](https://GitHub.com/reetrop) - Lead Developer and founder of DSD256
 
 ## License
 Distributed under the AGPL-3.0 License. See [LICENCE](https://github.com/BooketGame/booketgame.github.io/blob/main/LICENSE) for more information.
