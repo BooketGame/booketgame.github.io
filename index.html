@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>audio player</title>
 
-  <!-- Google reCAPTCHA (real) -->
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+  <!-- Cloudflare Turnstile -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
   <style>
     /* === Core layout / theme === */
@@ -132,7 +132,7 @@
     /* disclaimer */
     .disclaimer { position:fixed; right:16px; bottom:8px; color:#777; font-size:.76rem; text-align:right; }
 
-    /* lock overlay (reCAPTCHA) */
+    /* lock overlay (Turnstile) */
     #locked {
       position:fixed; inset:0;
       display:flex; align-items:center; justify-content:center;
@@ -161,12 +161,15 @@
   </style>
 </head>
 <body>
-  <!-- LOCK overlay with real reCAPTCHA -->
+  <!-- LOCK overlay with Cloudflare Turnstile -->
   <div id="locked">
     <div class="lock-box" role="dialog" aria-modal="true" aria-label="Verification required">
       <h2>🔒 Security Verification Required</h2>
       <div class="grecaptcha-wrap">
-        <div class="g-recaptcha" data-sitekey="6Lfs5u4rAAAAABKDdVRJk17X2uMk7l2mzi6frduJ" data-callback="unlockSite"></div>
+        <div class="cf-turnstile"
+             data-sitekey="0x4AAAAAACBaQ0cKPewOPFOg"
+             data-callback="unlockSite">
+        </div>
       </div>
     </div>
   </div>
@@ -243,7 +246,7 @@
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); titleWrapper.click(); }
     });
 
-    /* ============== reCAPTCHA unlock ============== */
+    /* ============== Turnstile unlock ============== */
     function unlockSite() {
       const lock = document.getElementById("locked");
       lock.classList.add("fade-out");
@@ -393,7 +396,7 @@
       if (!q) return;
       const locked = document.getElementById("locked");
       if (locked && locked.style.display !== "none") {
-        alert("Please verify with reCAPTCHA first.");
+        alert("Please verify with captcha first.");
         return;
       }
       searchYouTube(q);
